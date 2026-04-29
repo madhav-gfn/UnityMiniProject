@@ -14,11 +14,22 @@ public class NetworkedSpellCaster : MonoBehaviourPun, IPunObservable
 
     private string syncedDebugText = "";
 
+    void Awake()
+    {
+        // Hide the entire debug panel immediately before the first frame to prevent the 1-frame flash
+        GameObject root = GetDebugPanelRoot();
+        if (root != null) root.SetActive(false);
+    }
+
     void Start()
     {
         // If this is OUR local network avatar, automatically find the gesture manager in the scene and connect to it!
         if (photonView.IsMine)
         {
+            // Turn the entire debug panel back on because it belongs to us!
+            GameObject root = GetDebugPanelRoot();
+            if (root != null) root.SetActive(true);
+
             DirectionalGestureCaster caster = FindObjectOfType<DirectionalGestureCaster>();
             if (caster != null)
             {
@@ -26,6 +37,20 @@ public class NetworkedSpellCaster : MonoBehaviourPun, IPunObservable
                 caster.OnDebugTextChanged.AddListener(UpdateLocalDebugText);
             }
         }
+    }
+
+    private GameObject GetDebugPanelRoot()
+    {
+        if (networkedDebugTextUI != null)
+        {
+            Canvas canvas = networkedDebugTextUI.GetComponentInParent<Canvas>();
+            if (canvas != null && canvas.transform.parent != null)
+            {
+                // Returns the GestureDebug object (parent of the Canvas), which holds both the Canvas and the Backsplash
+                return canvas.transform.parent.gameObject;
+            }
+        }
+        return null;
     }
 
     /// <summary>
