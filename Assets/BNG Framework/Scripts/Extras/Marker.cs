@@ -19,16 +19,16 @@ namespace BNG {
         public float MinDrawDistance = 0.02f;
         public float ReuseTolerance = 0.001f;
 
-        bool IsNewDraw = false;
-        Vector3 lastDrawPoint;
-        LineRenderer LineRenderer;
+        protected bool IsNewDraw = false;
+        protected Vector3 lastDrawPoint;
+        protected LineRenderer LineRenderer;
 
         // Use this to store our Marker's LineRenderers
-        Transform root;
-        Transform lastTransform;
-        Coroutine drawRoutine = null;
-        float lastLineWidth = 0;
-        int renderLifeTime = 0;
+        protected Transform root;
+        protected Transform lastTransform;
+        protected Coroutine drawRoutine = null;
+        protected float lastLineWidth = 0;
+        protected int renderLifeTime = 0;
 
 
         public override void OnGrab(Grabber grabber) {
@@ -47,7 +47,7 @@ namespace BNG {
             base.OnRelease();
         }
 
-        IEnumerator WriteRoutine() {
+        protected virtual IEnumerator WriteRoutine() {
             while (true) {
                 if (Physics.Raycast(RaycastStart.position, RaycastStart.up, out RaycastHit hit, RaycastLength, DrawingLayers, QueryTriggerInteraction.Ignore)) {
                     float tipDistance = Vector3.Distance(hit.point, RaycastStart.transform.position);
@@ -64,7 +64,7 @@ namespace BNG {
             }
         }
 
-        void InitDraw(Vector3 position, Quaternion rotation, float lineWidth, Color lineColor) {
+        protected virtual void InitDraw(Vector3 position, Quaternion rotation, float lineWidth, Color lineColor) {
             if (IsNewDraw) {
                 lastDrawPoint = position;
                 DrawPoint(lastDrawPoint, position, lineWidth, lineColor, rotation);
@@ -78,7 +78,7 @@ namespace BNG {
             }
         }
 
-        Vector3 DrawPoint(Vector3 lastDrawPoint, Vector3 endPosition, float lineWidth, Color lineColor, Quaternion rotation) {
+        protected virtual Vector3 DrawPoint(Vector3 lastDrawPoint, Vector3 endPosition, float lineWidth, Color lineColor, Quaternion rotation) {
             var dif = Mathf.Abs(lastLineWidth - lineWidth);
             lastLineWidth = lineWidth;
             if (dif > ReuseTolerance || renderLifeTime >= 98) {
