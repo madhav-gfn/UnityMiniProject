@@ -42,6 +42,7 @@ MonoBehaviour:
   - ShootRPC
   - AddPointRPC
   - BeginStrokeRPC
+  - RPC_SpawnSpell
   DisableAutoOpenWizard: 1
   ShowSettings: 1
   DevRegionSetOnce: 1

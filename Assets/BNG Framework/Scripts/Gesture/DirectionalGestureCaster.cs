@@ -1,6 +1,14 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.XR;
+using UnityEngine.Events;
+using UnityEngine.UI;
+
+[System.Serializable]
+public class SpellEvent : UnityEvent<int, Vector3, Quaternion> { }
+
+[System.Serializable]
+public class DebugTextEvent : UnityEvent<string> { }
 
 public interface IGestureInput
 {
@@ -118,12 +126,18 @@ public class DirectionalGestureCaster : MonoBehaviour
     [Header("Testing")]
     public bool enableNoise = false;
     public float noiseAmount = 0.01f;
+    [Tooltip("Drag the Text object from your DebugText canvas here")]
+    public Text debugTextUI;
 
     [Header("Spell Prefabs")]
     public GameObject firePrefab;
     public GameObject icePrefab;
     public GameObject shieldPrefab;
     public GameObject lightningPrefab;
+
+    [Header("Network Events")]
+    public SpellEvent OnSpellCastEvent;
+    public DebugTextEvent OnDebugTextChanged;
 
     private IGestureInput gestureInput;
     private MouseInput mouseInput;
@@ -164,6 +178,25 @@ public class DirectionalGestureCaster : MonoBehaviour
         {
             Debug.DrawLine(startPos, currentPos, Color.yellow);
         }
+
+        UpdateDebugUI();
+    }
+
+    private void UpdateDebugUI()
+    {
+        string debugString = $"Direction: {lastDetectedDirection}\n" +
+                             $"Mode: {inputMode}\n" +
+                             $"Dragging: {isDragging}\n" +
+                             $"Start: {startPos}\n" +
+                             $"Current: {currentPos}";
+
+        if (debugTextUI != null)
+        {
+            debugTextUI.text = debugString;
+        }
+
+        // Broadcast to network/UI listeners
+        OnDebugTextChanged?.Invoke(debugString);
     }
 
     private void StartGesture()
@@ -237,7 +270,7 @@ public class DirectionalGestureCaster : MonoBehaviour
         return pos;
     }
 
-    private void SpawnSpell(GameObject prefab, string spellName)
+    private void SpawnSpell(GameObject prefab, string spellName, int spellId)
     {
         Debug.Log("Casting: " + spellName);
         if (prefab == null) return;
@@ -249,12 +282,15 @@ public class DirectionalGestureCaster : MonoBehaviour
         // Spawn slightly in front of the hand/camera
         Vector3 spawnPos = spawnPoint.position + spawnPoint.forward * 0.2f;
         Instantiate(prefab, spawnPos, spawnPoint.rotation);
+
+        // Broadcast to network listeners
+        OnSpellCastEvent?.Invoke(spellId, spawnPos, spawnPoint.rotation);
     }
 
-    private void Fire() => SpawnSpell(firePrefab, "Fire! (Up)");
-    private void Ice() => SpawnSpell(icePrefab, "Ice! (Down)");
-    private void Shield() => SpawnSpell(shieldPrefab, "Shield! (Left)");
-    private void Lightning() => SpawnSpell(lightningPrefab, "Lightning! (Right)");
+    private void Fire() => SpawnSpell(firePrefab, "Fire! (Up)", 0);
+    private void Ice() => SpawnSpell(icePrefab, "Ice! (Down)", 1);
+    private void Shield() => SpawnSpell(shieldPrefab, "Shield! (Left)", 2);
+    private void Lightning() => SpawnSpell(lightningPrefab, "Lightning! (Right)", 3);
 
     void OnDrawGizmos()
     {
@@ -268,16 +304,5 @@ public class DirectionalGestureCaster : MonoBehaviour
         }
     }
 
-    void OnGUI()
-    {
-        GUIStyle style = new GUIStyle();
-        style.fontSize = 24;
-        style.normal.textColor = Color.white;
-        GUI.Label(new Rect(10, 10, 400, 40), "Direction: " + lastDetectedDirection, style);
-        
-        style.fontSize = 18;
-        GUI.Label(new Rect(10, 50, 400, 40), "Mode: " + inputMode, style);
-        GUI.Label(new Rect(10, 70, 400, 40), "Dragging: " + isDragging, style);
-        GUI.Label(new Rect(10, 90, 800, 40), "Start: " + startPos + " | Current: " + currentPos);
-    }
+    // OnGUI removed. Debug info is now routed to the debugTextUI canvas.
 }
