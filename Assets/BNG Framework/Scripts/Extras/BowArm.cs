@@ -10,6 +10,9 @@ namespace BNG {
     public class BowArm : MonoBehaviour {
 
         public Bow BowItem;
+#if PUN_2_OR_NEWER
+        public NetworkedBow NetworkedBowItem;
+#endif
 
         /// <summary>
         /// When to modify the rotation : 0-1;
@@ -40,10 +43,17 @@ namespace BNG {
         // Update is called once per frame
         void Update() {
 
-            if (BowItem.DrawPercent >= BowPercentStart) {
+            float drawPercent = BowItem != null ? BowItem.DrawPercent : 0;
+#if PUN_2_OR_NEWER
+            if (BowItem == null && NetworkedBowItem != null) {
+                drawPercent = NetworkedBowItem.DrawPercent;
+            }
+#endif
+
+            if (drawPercent >= BowPercentStart) {
                 transform.localRotation = Quaternion.RotateTowards(transform.localRotation, _endRotation, Speed * Time.deltaTime);
             }
-            else if(BowItem.DrawPercent < BowPercentStart && BowItem.DrawPercent > 5) {
+            else if(drawPercent < BowPercentStart && drawPercent > 5) {
                 transform.localRotation = Quaternion.RotateTowards(transform.localRotation, _startRotation, Speed * Time.deltaTime);
             }
             else {

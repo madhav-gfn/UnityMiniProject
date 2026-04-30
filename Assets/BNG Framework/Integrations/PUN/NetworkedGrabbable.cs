@@ -61,11 +61,14 @@ namespace BNG {
             }
             // Our object. Does not need to be forced to kinematic
             else if (view.IsMine) {
-                if(rb) {
-                    rb.isKinematic = wasKinematic;
-                }
-
                 BeingHeld = heldByGrabbers != null && heldByGrabbers.Count > 0;
+
+                if(rb) {
+                    // Kinematic grabbing needs to keep the Rigidbody kinematic while held.
+                    if (!BeingHeld || GrabPhysics != GrabPhysics.Kinematic) {
+                        rb.isKinematic = wasKinematic;
+                    }
+                }
             }
         }
 

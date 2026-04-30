@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: PhotonServerSettings
   m_EditorClassIdentifier: PhotonUnityNetworking::Photon.Pun.ServerSettings
   AppSettings:
-    AppIdRealtime: df71e922-a6e1-49f9-bef0-f3a07065c221
+    AppIdRealtime: bb88de98-94a0-41da-875e-2b341cb9a207
     AppIdFusion: 
     AppIdChat: b7d7b6a7-90cf-4216-aa5b-efaf8ca80027
     AppIdVoice: 
@@ -42,6 +42,11 @@ MonoBehaviour:
   - ShootRPC
   - AddPointRPC
   - BeginStrokeRPC
+  - DealDamageRPC
+  - ImpactRPC
+  - PlayBowDrawRPC
+  - PlayBowReleaseRPC
+  - ShootArrowRPC
   DisableAutoOpenWizard: 1
   ShowSettings: 1
   DevRegionSetOnce: 1
