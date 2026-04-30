@@ -149,6 +149,9 @@ public class DirectionalGestureCaster : MonoBehaviour
     private float gestureStartTime;
     private string lastDetectedDirection = "None";
 
+    private Vector3 initialSpawnPosition;
+    private Quaternion initialSpawnRotation;
+
     void Start()
     {
         Camera cam = headCamera != null ? headCamera : Camera.main;
@@ -206,6 +209,12 @@ public class DirectionalGestureCaster : MonoBehaviour
         currentPos = startPos;
         gestureStartTime = Time.time;
         lastDetectedDirection = "Casting...";
+
+        // Cache the exact position/rotation where the gesture started (the source)
+        Transform spawnPoint = inputMode == InputMode.XR && xrController != null ? xrController : 
+                               (headCamera != null ? headCamera.transform : transform);
+        initialSpawnPosition = spawnPoint.position;
+        initialSpawnRotation = spawnPoint.rotation;
     }
 
     private void UpdateGesture()
@@ -275,16 +284,12 @@ public class DirectionalGestureCaster : MonoBehaviour
         Debug.Log("Casting: " + spellName);
         if (prefab == null) return;
         
-        // Shoot from the controller if in XR, otherwise from the camera
-        Transform spawnPoint = inputMode == InputMode.XR && xrController != null ? xrController : 
-                               (headCamera != null ? headCamera.transform : transform);
-        
-        // Spawn slightly in front of the hand/camera
-        Vector3 spawnPos = spawnPoint.position + spawnPoint.forward * 0.2f;
-        Instantiate(prefab, spawnPos, spawnPoint.rotation);
+        // Spawn slightly in front of where the hand/camera was when the gesture STARTED
+        Vector3 spawnPos = initialSpawnPosition + (initialSpawnRotation * Vector3.forward) * 0.2f;
+        Instantiate(prefab, spawnPos, initialSpawnRotation);
 
         // Broadcast to network listeners
-        OnSpellCastEvent?.Invoke(spellId, spawnPos, spawnPoint.rotation);
+        OnSpellCastEvent?.Invoke(spellId, spawnPos, initialSpawnRotation);
     }
 
     private void Fire() => SpawnSpell(firePrefab, "Fire! (Up)", 0);
