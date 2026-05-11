@@ -30,12 +30,17 @@ public class EnemyAIBase : MonoBehaviour
 
     [Tooltip("How fast the enemy moves while wandering or chasing.")]
     public float moveSpeed = 1.75f;
-
     [Tooltip("How quickly the enemy turns toward its movement direction.")]
     public float turnSpeed = 8f;
 
     [Tooltip("If the target is within this range, the enemy will chase instead of wandering.")]
     public float chaseRange = 10f;
+
+    [Tooltip("If true, taking damage makes the enemy focus the player even outside normal chase range.")]
+    public bool aggroOnDamage = true;
+
+    [Tooltip("How long damage aggro lasts. Use 0 or less to stay aggressive until death.")]
+    public float damageAggroDuration = 12f;
 
     [Tooltip("How close the enemy must get to a wander point before choosing a new one.")]
     public float wanderPointTolerance = 0.5f;
@@ -74,6 +79,8 @@ public class EnemyAIBase : MonoBehaviour
     protected Vector3 wanderTarget;
     protected float nextWanderTime;
     protected bool isDead;
+    protected bool isAggroed;
+    protected float aggroUntilTime;
     private bool isDeathRoutineRunning;
 
     protected virtual void Reset()
@@ -171,7 +178,7 @@ public class EnemyAIBase : MonoBehaviour
 
     protected virtual Vector3 GetDesiredDestination(float deltaTime)
     {
-        if (HasTargetInRange(chaseRange))
+        if (HasTargetInRange(chaseRange) || IsAggroActive())
         {
             return FlatPosition(playerTarget.position);
         }
@@ -297,7 +304,39 @@ public class EnemyAIBase : MonoBehaviour
             return;
         }
 
+        if (aggroOnDamage)
+        {
+            BecomeAggroed();
+        }
+
         TriggerDamageAnimation();
+    }
+
+    protected void BecomeAggroed()
+    {
+        isAggroed = true;
+        aggroUntilTime = damageAggroDuration <= 0f ? float.PositiveInfinity : Time.time + damageAggroDuration;
+
+        if (autoFindTarget)
+        {
+            ResolveTarget();
+        }
+    }
+
+    protected bool IsAggroActive()
+    {
+        if (!isAggroed)
+        {
+            return false;
+        }
+
+        if (Time.time <= aggroUntilTime)
+        {
+            return playerTarget != null;
+        }
+
+        isAggroed = false;
+        return false;
     }
 
     protected virtual void HandleDestroyed()

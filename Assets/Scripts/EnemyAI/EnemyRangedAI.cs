@@ -37,38 +37,82 @@ public class EnemyRangedAI : EnemyAIBase
     [Tooltip("How quickly the ranged enemy rotates to face the target before firing.")]
     public float aimRotationSpeed = 12f;
 
+    [Tooltip("Movement speed multiplier while backing away from a close player.")]
+    public float closeRetreatSpeedMultiplier = 0.45f;
+
+    [Tooltip("How often the enemy picks a small sidestep while already in a good firing position.")]
+    public float combatRepositionInterval = 2.5f;
+
+    [Tooltip("Sideways distance used for small combat repositioning moves.")]
+    public float strafeDistance = 1.75f;
+
+    [Tooltip("Distance tolerance around the preferred range before the enemy adjusts position.")]
+    public float preferredDistanceBuffer = 0.75f;
+
     private float nextAttackTime;
-    private bool isAiming;
+    private Vector3 combatMoveTarget;
+    private float nextCombatRepositionTime;
+    private int strafeDirection = 1;
 
     protected override Vector3 GetDesiredDestination(float deltaTime)
     {
         if (playerTarget == null)
         {
-            return base.GetDesiredDestination(deltaTime);
+            SetAgentSpeed(moveSpeed);
+            return GetCurrentPosition();
         }
 
         float distance = GetTargetDistance();
-        Vector3 targetPosition = FlatPosition(playerTarget.position);
+        bool isEngaged = IsAggroActive() || distance <= Mathf.Max(chaseRange, attackRange);
 
-        if (distance > preferredDistance)
+        if (!isEngaged)
         {
-            return targetPosition;
+            SetAgentSpeed(moveSpeed);
+            return GetCurrentPosition();
         }
+
+        Vector3 currentPosition = GetCurrentPosition();
+        Vector3 targetPosition = FlatPosition(playerTarget.position);
+        Vector3 awayFromPlayer = currentPosition - targetPosition;
+        awayFromPlayer.y = 0f;
+
+        if (awayFromPlayer.sqrMagnitude < 0.0001f)
+        {
+            awayFromPlayer = -transform.forward;
+        }
+
+        awayFromPlayer.Normalize();
 
         if (distance < minimumDistance)
         {
-            Vector3 away = GetCurrentPosition() - playerTarget.position;
-            away.y = 0f;
-
-            if (away.sqrMagnitude < 0.0001f)
-            {
-                away = -transform.forward;
-            }
-
-            return FlatPosition(GetCurrentPosition() + away.normalized * 2f);
+            SetAgentSpeed(moveSpeed * closeRetreatSpeedMultiplier);
+            Vector3 retreatTarget = currentPosition + awayFromPlayer * Mathf.Max(1f, minimumDistance - distance + 1f);
+            return KeepDestinationInRegion(retreatTarget, currentPosition);
         }
 
-        return GetCurrentPosition();
+        if (distance > attackRange)
+        {
+            SetAgentSpeed(moveSpeed);
+            Vector3 approachTarget = targetPosition + awayFromPlayer * preferredDistance;
+            return KeepDestinationInRegion(approachTarget, currentPosition);
+        }
+
+        if (distance > preferredDistance + preferredDistanceBuffer)
+        {
+            SetAgentSpeed(moveSpeed * 0.75f);
+            Vector3 closeToPreferredRange = targetPosition + awayFromPlayer * preferredDistance;
+            return KeepDestinationInRegion(closeToPreferredRange, currentPosition);
+        }
+
+        if (distance < preferredDistance - preferredDistanceBuffer)
+        {
+            SetAgentSpeed(moveSpeed * closeRetreatSpeedMultiplier);
+            Vector3 backpedalTarget = currentPosition + awayFromPlayer * Mathf.Max(0.75f, preferredDistance - distance);
+            return KeepDestinationInRegion(backpedalTarget, currentPosition);
+        }
+
+        SetAgentSpeed(moveSpeed * 0.55f);
+        return GetCombatRepositionTarget(currentPosition, awayFromPlayer);
     }
 
     protected override void FixedUpdate()
@@ -77,26 +121,20 @@ public class EnemyRangedAI : EnemyAIBase
 
         if (isDead || playerTarget == null)
         {
-            isAiming = false;
             return;
         }
 
         float distance = GetTargetDistance();
-        if (distance > attackRange || Time.time < nextAttackTime)
+        if (distance > attackRange)
         {
-            isAiming = false;
             return;
         }
 
-        if (!isAiming)
-        {
-            FacePlayer();
-            isAiming = true;
-        }
-        else if (IsAlignedWithPlayer())
+        FacePlayer();
+
+        if (Time.time >= nextAttackTime && IsAlignedWithPlayer())
         {
             FireAtTarget();
-            isAiming = false;
         }
     }
 
@@ -107,9 +145,14 @@ public class EnemyRangedAI : EnemyAIBase
             return true;
         }
 
-        Vector3 toPlayer = (playerTarget.position - transform.position).normalized;
+        Vector3 toPlayer = playerTarget.position - transform.position;
         toPlayer.y = 0f;
-        float dot = Vector3.Dot(transform.forward, toPlayer);
+        if (toPlayer.sqrMagnitude < 0.0001f)
+        {
+            return true;
+        }
+
+        float dot = Vector3.Dot(transform.forward, toPlayer.normalized);
         return dot > 0.95f;
     }
 
@@ -167,7 +210,43 @@ public class EnemyRangedAI : EnemyAIBase
             if (targetDamageable != null)
             {
                 targetDamageable.DealDamage(damage, hit.point, hit.normal, true, gameObject, hit.collider.gameObject);
+                return;
             }
+
+            if (hit.collider.transform == playerTarget || hit.collider.transform.IsChildOf(playerTarget))
+            {
+                ApplyDamageToTarget(damage, hit.point, hit.normal);
+            }
+        }
+    }
+
+    private Vector3 GetCombatRepositionTarget(Vector3 currentPosition, Vector3 awayFromPlayer)
+    {
+        if (Time.time < nextCombatRepositionTime && Vector3.Distance(currentPosition, combatMoveTarget) > 0.35f)
+        {
+            return combatMoveTarget;
+        }
+
+        nextCombatRepositionTime = Time.time + combatRepositionInterval;
+        strafeDirection *= -1;
+
+        Vector3 strafe = Vector3.Cross(Vector3.up, awayFromPlayer).normalized * strafeDirection;
+        Vector3 repositionTarget = currentPosition + strafe * strafeDistance;
+        combatMoveTarget = KeepDestinationInRegion(repositionTarget, currentPosition);
+        return combatMoveTarget;
+    }
+
+    private Vector3 KeepDestinationInRegion(Vector3 destination, Vector3 fallback)
+    {
+        destination = FlatPosition(destination);
+        return IsInsideRegion(destination) ? destination : fallback;
+    }
+
+    private void SetAgentSpeed(float speed)
+    {
+        if (navAgent != null)
+        {
+            navAgent.speed = Mathf.Max(0.1f, speed);
         }
     }
 }

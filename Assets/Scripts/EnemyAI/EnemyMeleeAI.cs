@@ -19,6 +19,9 @@ public class EnemyMeleeAI : EnemyAIBase
     [Tooltip("Damage dealt when the player is very close to the enemy.")]
     public float maxDamage = 20f;
 
+    [Tooltip("If true, a damaged melee enemy immediately attacks when the player is in melee range.")]
+    public bool retaliateWhenDamaged = true;
+
     private float nextAttackTime;
 
     protected override Vector3 GetDesiredDestination(float deltaTime)
@@ -47,6 +50,23 @@ public class EnemyMeleeAI : EnemyAIBase
         }
 
         PerformAttack(distance);
+    }
+
+    protected override void HandleDamaged(float damageAmount)
+    {
+        base.HandleDamaged(damageAmount);
+
+        if (!retaliateWhenDamaged || isDead || playerTarget == null)
+        {
+            return;
+        }
+
+        float distance = GetTargetDistance();
+        if (distance <= attackDistance)
+        {
+            nextAttackTime = Time.time;
+            PerformAttack(distance);
+        }
     }
 
     private void PerformAttack(float distance)
