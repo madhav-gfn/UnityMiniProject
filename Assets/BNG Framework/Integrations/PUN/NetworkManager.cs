@@ -2,6 +2,7 @@
 using Photon.Pun;
 using Photon.Realtime;
 #endif
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -44,6 +45,8 @@ MonoBehaviourPunCallbacks
         ScreenFader sf;
 #if PUN_2_OR_NEWER
 
+        const string PhotonUserIdPrefsKey = "BNG.PUN.UserId";
+
         void Awake() {
 
             // Required if you want to call PhotonNetwork.LoadLevel() 
@@ -59,6 +62,8 @@ MonoBehaviourPunCallbacks
         }
 
         void Start() {
+            ConfigurePhotonIdentity();
+
             // Connect to Random Room if Connected to Photon Server
             if (PhotonNetwork.IsConnected) {
                 if (JoinRoomOnStart) {
@@ -71,6 +76,30 @@ MonoBehaviourPunCallbacks
                 PhotonNetwork.ConnectUsingSettings();
                 PhotonNetwork.GameVersion = GameVersion;
             }
+        }
+
+        void ConfigurePhotonIdentity() {
+            string deviceName = string.IsNullOrEmpty(SystemInfo.deviceName) ? "UnityEditor" : SystemInfo.deviceName;
+            string userId = PlayerPrefs.GetString(PhotonUserIdPrefsKey, string.Empty);
+
+            if (string.IsNullOrEmpty(userId)) {
+                string deviceId = SystemInfo.deviceUniqueIdentifier;
+
+                if (!string.IsNullOrEmpty(deviceId) && deviceId != SystemInfo.unsupportedIdentifier) {
+                    userId = deviceId;
+                }
+                else {
+                    userId = Guid.NewGuid().ToString("N");
+                }
+
+                PlayerPrefs.SetString(PhotonUserIdPrefsKey, userId);
+                PlayerPrefs.Save();
+            }
+
+            PhotonNetwork.NickName = deviceName;
+            PhotonNetwork.AuthValues = new AuthenticationValues(userId);
+
+            LogText("Photon identity set. NickName: " + PhotonNetwork.NickName + " UserId: " + userId);
         }
 
         void Update() {
