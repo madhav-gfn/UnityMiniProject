@@ -33,6 +33,22 @@ public class EnemyAIBase : MonoBehaviour
     [Tooltip("How quickly the enemy turns toward its movement direction.")]
     public float turnSpeed = 8f;
 
+    [Header("Navigation")]
+    [Tooltip("Obstacle avoidance quality for NavMeshAgent.")]
+    public ObstacleAvoidanceType obstacleAvoidanceType = ObstacleAvoidanceType.HighQualityObstacleAvoidance;
+
+    [Tooltip("Randomize avoidance priority to reduce crowding deadlocks.")]
+    public bool randomizeAvoidancePriority = true;
+
+    [Tooltip("Minimum randomized avoidance priority (0-99).")]
+    public int avoidancePriorityMin = 35;
+
+    [Tooltip("Maximum randomized avoidance priority (0-99).")]
+    public int avoidancePriorityMax = 65;
+
+    [Tooltip("Sync NavMeshAgent radius/height to the CapsuleCollider when available.")]
+    public bool syncAgentWithCapsule = true;
+
     [Tooltip("If the target is within this range, the enemy will chase instead of wandering.")]
     public float chaseRange = 10f;
 
@@ -196,6 +212,11 @@ public class EnemyAIBase : MonoBehaviour
         if (navAgent == null || !navAgent.isActiveAndEnabled || !navAgent.isOnNavMesh)
         {
             return;
+        }
+
+        if (navAgent.isStopped)
+        {
+            navAgent.isStopped = false;
         }
 
         if ((navAgent.destination - destination).sqrMagnitude > 0.01f)
@@ -423,8 +444,23 @@ public class EnemyAIBase : MonoBehaviour
             navAgent.speed = Mathf.Max(0.1f, moveSpeed);
             navAgent.angularSpeed = Mathf.Max(30f, turnSpeed * 90f);
             navAgent.acceleration = Mathf.Max(1f, moveSpeed * 4f);
-            navAgent.stoppingDistance = 0.1f;
+            navAgent.stoppingDistance = 0.15f;
             navAgent.autoBraking = true;
+            navAgent.autoRepath = true;
+            navAgent.obstacleAvoidanceType = obstacleAvoidanceType;
+
+            if (randomizeAvoidancePriority)
+            {
+                int minPriority = Mathf.Clamp(avoidancePriorityMin, 0, 99);
+                int maxPriority = Mathf.Clamp(avoidancePriorityMax, minPriority, 99);
+                navAgent.avoidancePriority = Random.Range(minPriority, maxPriority + 1);
+            }
+
+            if (syncAgentWithCapsule && capsule != null)
+            {
+                navAgent.radius = Mathf.Max(0.1f, capsule.radius * 0.95f);
+                navAgent.height = Mathf.Max(1f, capsule.height);
+            }
         }
 
         if (body != null)

@@ -22,15 +22,36 @@ public class EnemyMeleeAI : EnemyAIBase
     [Tooltip("If true, a damaged melee enemy immediately attacks when the player is in melee range.")]
     public bool retaliateWhenDamaged = true;
 
+    [Header("Combat Movement")]
+    [Tooltip("How often the melee enemy picks a small sidestep while in melee range.")]
+    public float combatRepositionInterval = 1.4f;
+
+    [Tooltip("Sideways distance used for small combat repositioning moves.")]
+    public float strafeDistance = 1.1f;
+
+    [Tooltip("Movement speed multiplier while strafing near the player.")]
+    public float combatMoveSpeedMultiplier = 0.6f;
+
     private float nextAttackTime;
+    private Vector3 combatMoveTarget;
+    private float nextCombatRepositionTime;
+    private int strafeDirection = 1;
 
     protected override Vector3 GetDesiredDestination(float deltaTime)
     {
-        if (HasTargetInRange(attackDistance))
+        if (playerTarget == null)
         {
-            return GetCurrentPosition();
+            return base.GetDesiredDestination(deltaTime);
         }
 
+        float distance = GetTargetDistance();
+        if (distance <= attackDistance)
+        {
+            SetAgentSpeed(moveSpeed * combatMoveSpeedMultiplier);
+            return GetCombatRepositionTarget();
+        }
+
+        SetAgentSpeed(moveSpeed);
         return base.GetDesiredDestination(deltaTime);
     }
 
@@ -98,5 +119,44 @@ public class EnemyMeleeAI : EnemyAIBase
 
         Quaternion targetRotation = Quaternion.LookRotation(directionToPlayer.normalized, Vector3.up);
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, 18f * Time.deltaTime);
+    }
+
+    private Vector3 GetCombatRepositionTarget()
+    {
+        Vector3 currentPosition = GetCurrentPosition();
+
+        if (Time.time < nextCombatRepositionTime && Vector3.Distance(currentPosition, combatMoveTarget) > 0.3f)
+        {
+            return combatMoveTarget;
+        }
+
+        nextCombatRepositionTime = Time.time + combatRepositionInterval;
+        strafeDirection *= -1;
+
+        Vector3 toPlayer = playerTarget.position - currentPosition;
+        toPlayer.y = 0f;
+        if (toPlayer.sqrMagnitude < 0.0001f)
+        {
+            toPlayer = transform.forward;
+        }
+
+        Vector3 strafe = Vector3.Cross(Vector3.up, toPlayer.normalized) * strafeDirection;
+        Vector3 repositionTarget = currentPosition + strafe * strafeDistance;
+        combatMoveTarget = KeepDestinationInRegion(repositionTarget, currentPosition);
+        return combatMoveTarget;
+    }
+
+    private Vector3 KeepDestinationInRegion(Vector3 destination, Vector3 fallback)
+    {
+        destination = FlatPosition(destination);
+        return IsInsideRegion(destination) ? destination : fallback;
+    }
+
+    private void SetAgentSpeed(float speed)
+    {
+        if (navAgent != null)
+        {
+            navAgent.speed = Mathf.Max(0.1f, speed);
+        }
     }
 }

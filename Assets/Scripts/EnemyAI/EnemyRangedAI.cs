@@ -54,6 +54,16 @@ public class EnemyRangedAI : EnemyAIBase
     private float nextCombatRepositionTime;
     private int strafeDirection = 1;
 
+    protected override void Awake()
+    {
+        base.Awake();
+
+        if (navAgent != null)
+        {
+            navAgent.updateRotation = false;
+        }
+    }
+
     protected override Vector3 GetDesiredDestination(float deltaTime)
     {
         if (playerTarget == null)
@@ -158,7 +168,7 @@ public class EnemyRangedAI : EnemyAIBase
 
     private void FacePlayer()
     {
-        if (playerTarget == null || navAgent == null)
+        if (playerTarget == null)
         {
             return;
         }
@@ -172,7 +182,7 @@ public class EnemyRangedAI : EnemyAIBase
         }
 
         Quaternion targetRotation = Quaternion.LookRotation(directionToPlayer.normalized, Vector3.up);
-        navAgent.transform.rotation = Quaternion.Slerp(navAgent.transform.rotation, targetRotation, aimRotationSpeed * Time.deltaTime);
+        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, aimRotationSpeed * Time.deltaTime);
     }
 
     private void FireAtTarget()
